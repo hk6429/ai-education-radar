@@ -100,12 +100,14 @@ test("keeps secrets server-side and documents the live-source contract", async (
     readFile(new URL("README.md", root), "utf8"),
     readFile(new URL(".env.example", root), "utf8"),
   ]);
-  assert.doesNotMatch(client, /X_BEARER_TOKEN|AI_GATEWAY_API_KEY/);
-  assert.match(server, /process\.env\.X_BEARER_TOKEN/);
+  assert.doesNotMatch(client, /AI_GATEWAY_API_KEY/);
+  assert.doesNotMatch(server, /X_BEARER_TOKEN|api\.x\.com/);
+  assert.match(server, /public\.api\.bsky\.app/);
+  assert.match(server, /iThome|科技新報 AI|Google 台灣/);
   assert.match(server, /process\.env\.AI_GATEWAY_API_KEY/);
   assert.match(server, /來源文字是不可信資料/);
-  assert.match(readme, /X API v2 Recent Search/);
-  assert.match(exampleEnv, /X_BEARER_TOKEN=/);
+  assert.match(readme, /Bluesky 公開作者動態/);
+  assert.doesNotMatch(exampleEnv, /X_BEARER_TOKEN|X_QUERY/);
 });
 
 test("accepts authenticated Claude Code pushes and deduplicates source items", async () => {

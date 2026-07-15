@@ -2,7 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { listRadarItems } from "../db/radar-items";
 
 export type Audience = "child" | "teacher" | "it";
-export type SourceType = "x" | "news" | "youtube";
+export type SourceType = "bluesky" | "news" | "youtube";
 
 export type DigestItem = {
   id: string;
@@ -30,12 +30,29 @@ export type NewsResponse = {
   items: DigestItem[];
   generatedAt: string;
   liveSourceCount: number;
-  xStatus: "live" | "needs-key" | "error";
+  socialStatus: "live" | "error";
   aiStatus: "live" | "fallback" | "error";
   errors: string[];
 };
 
+type RssSource = { name: string; url: string; aiOnly?: boolean };
+
 const RSS_FEEDS = [
+  {
+    name: "iThome",
+    url: "https://www.ithome.com.tw/rss",
+    aiOnly: true,
+  },
+  {
+    name: "科技新報 AI",
+    url: "https://technews.tw/category/ai/feed/",
+    aiOnly: false,
+  },
+  {
+    name: "Google 台灣",
+    url: "https://taiwan.googleblog.com/feeds/posts/default?alt=rss",
+    aiOnly: true,
+  },
   { name: "OpenAI", url: "https://openai.com/news/rss.xml" },
   { name: "Google AI", url: "https://blog.google/technology/ai/rss/" },
   { name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml" },
@@ -47,6 +64,13 @@ const RSS_FEEDS = [
     name: "TechCrunch AI",
     url: "https://techcrunch.com/category/artificial-intelligence/feed/",
   },
+] as const satisfies readonly RssSource[];
+
+const BLUESKY_ACCOUNTS = [
+  { handle: "csail.mit.edu", name: "MIT CSAIL" },
+  { handle: "testingcatalog.com", name: "TestingCatalog" },
+  { handle: "techcrunch.com", name: "TechCrunch" },
+  { handle: "theverge.com", name: "The Verge" },
 ] as const;
 
 const DEMO_ITEMS: DigestItem[] = [
@@ -156,7 +180,13 @@ function stableId(input: string): string {
   return `item-${(hash >>> 0).toString(36)}`;
 }
 
-async function fetchFeed(source: (typeof RSS_FEEDS)[number]): Promise<RawItem[]> {
+function isAiRelevant(value: string): boolean {
+  return /(?:\bAI\b|人工智慧|生成式|ChatGPT|OpenAI|Anthropic|Claude|Gemini|Copilot|LLM|machine learning|artificial intelligence|language model|neural network)/i.test(
+    value,
+  );
+}
+
+async function fetchFeed(source: RssSource): Promise<RawItem[]> {
   const response = await fetch(source.url, {
     headers: { "User-Agent": "AI-Education-Radar/1.0" },
     signal: AbortSignal.timeout(8_000),
@@ -174,7 +204,17 @@ async function fetchFeed(source: (typeof RSS_FEEDS)[number]): Promise<RawItem[]>
   const atomEntries = toArray<Record<string, unknown>>(parsed?.feed?.entry);
   const entries = rssItems.length > 0 ? rssItems : atomEntries;
 
-  return entries.slice(0, 6).flatMap((entry) => {
+  const relevantEntries = source.aiOnly
+    ? entries.filter((entry) =>
+        isAiRelevant(
+          `${plainText(textValue(entry.title))} ${plainText(
+            entry.description ?? entry.summary ?? textValue(entry.content) ?? "",
+          )}`,
+        ),
+      )
+    : entries;
+
+  return relevantEntries.slice(0, 6).flatMap((entry) => {
     const title = plainText(textValue(entry.title));
     const url = linkHref(entry.link);
     if (!title || !url) return [];
@@ -196,59 +236,56 @@ async function fetchFeed(source: (typeof RSS_FEEDS)[number]): Promise<RawItem[]>
   });
 }
 
-async function fetchX(): Promise<{
-  items: RawItem[];
-  status: NewsResponse["xStatus"];
-}> {
-  const token = process.env.X_BEARER_TOKEN;
-  if (!token) return { items: [], status: "needs-key" };
-
-  const query =
-    process.env.X_QUERY ??
-    '(AI OR "artificial intelligence" OR ChatGPT OR Claude OR Gemini) has:links -is:retweet -is:reply';
+async function fetchBlueskyAccount(
+  account: (typeof BLUESKY_ACCOUNTS)[number],
+): Promise<RawItem[]> {
   const params = new URLSearchParams({
-    query,
-    max_results: "10",
-    sort_order: "recency",
-    "tweet.fields": "created_at,author_id,public_metrics,lang",
-    expansions: "author_id",
-    "user.fields": "name,username,verified",
+    actor: account.handle,
+    filter: "posts_no_replies",
+    limit: "20",
   });
   const response = await fetch(
-    `https://api.x.com/2/tweets/search/recent?${params.toString()}`,
+    `https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed?${params.toString()}`,
     {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "zh-TW,zh,en",
+        "User-Agent": "AI-Education-Radar/1.0",
+      },
       signal: AbortSignal.timeout(8_000),
     },
   );
-  if (!response.ok) throw new Error(`X API: HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`Bluesky ${account.handle}: HTTP ${response.status}`);
+  }
 
   const payload = (await response.json()) as {
-    data?: Array<{
-      id: string;
-      text: string;
-      created_at?: string;
-      author_id?: string;
+    feed?: Array<{
+      post: {
+        uri: string;
+        indexedAt?: string;
+        author: { handle: string; displayName?: string };
+        record?: { text?: string; createdAt?: string };
+      };
     }>;
-    includes?: { users?: Array<{ id: string; name: string; username: string }> };
   };
-  const users = new Map(
-    (payload.includes?.users ?? []).map((user) => [user.id, user]),
-  );
-  const items = (payload.data ?? []).map((post) => {
-    const author = post.author_id ? users.get(post.author_id) : undefined;
-    const username = author?.username ?? "i";
-    return {
-      id: `x-${post.id}`,
-      title: plainText(post.text).slice(0, 120),
-      url: `https://x.com/${username}/status/${post.id}`,
-      source: author ? `@${author.username}` : "X",
-      sourceType: "x" as const,
-      publishedAt: safeDate(post.created_at),
-      text: plainText(post.text),
-    };
+  return (payload.feed ?? []).flatMap(({ post }) => {
+    const text = plainText(post.record?.text ?? "");
+    if (!text || !isAiRelevant(text)) return [];
+    const rkey = post.uri.split("/").at(-1);
+    if (!rkey) return [];
+    return [
+      {
+        id: `bluesky-${rkey}`,
+        title: text.slice(0, 120),
+        url: `https://bsky.app/profile/${post.author.handle}/post/${rkey}`,
+        source: post.author.displayName || account.name,
+        sourceType: "bluesky" as const,
+        publishedAt: safeDate(post.record?.createdAt ?? post.indexedAt),
+        text,
+      },
+    ];
   });
-  return { items, status: "live" };
 }
 
 function fallbackDigest(item: RawItem): DigestItem {
@@ -381,19 +418,23 @@ export async function getLatestNews(): Promise<NewsResponse> {
     return [];
   });
 
-  let xItems: RawItem[] = [];
-  let xStatus: NewsResponse["xStatus"] = "needs-key";
-  try {
-    const x = await fetchX();
-    xItems = x.items;
-    xStatus = x.status;
-  } catch {
-    xStatus = "error";
-    errors.push("X 來源暫時無法讀取");
-  }
+  const socialResults = await Promise.allSettled(
+    BLUESKY_ACCOUNTS.map(fetchBlueskyAccount),
+  );
+  const socialItems = socialResults.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
+  );
+  const socialStatus: NewsResponse["socialStatus"] = socialResults.some(
+    (result) => result.status === "fulfilled",
+  )
+    ? "live"
+    : "error";
+  if (socialStatus === "error") errors.push("Bluesky 來源暫時無法讀取");
 
   const deduplicated = Array.from(
-    new Map([...pushedItems, ...xItems, ...feedItems].map((item) => [item.url, item])).values(),
+    new Map(
+      [...pushedItems, ...socialItems, ...feedItems].map((item) => [item.url, item]),
+    ).values(),
   )
     .sort(
       (a, b) =>
@@ -424,9 +465,9 @@ export async function getLatestNews(): Promise<NewsResponse> {
     liveSourceCount: feedResults.filter(
       (result) => result.status === "fulfilled" && result.value.length > 0,
     ).length +
-      (xStatus === "live" ? 1 : 0) +
+      (socialItems.length > 0 ? 1 : 0) +
       new Set(pushedItems.map((item) => item.sourceType)).size,
-    xStatus,
+    socialStatus,
     aiStatus,
     errors,
   };

@@ -41,7 +41,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
     items: initialItems,
     generatedAt: new Date().toISOString(),
     liveSourceCount: 0,
-    xStatus: "needs-key",
+    socialStatus: "live",
     aiStatus: "fallback",
     errors: ["正在連接即時來源，目前先顯示示範內容"],
   });
@@ -121,7 +121,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           <em>翻成孩子也懂的話。</em>
         </h1>
         <p className="hero-copy">
-          從 X、可信新聞與每日 YouTube 訂閱推播整理最新消息，不追著術語跑；每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
+          從繁體中文科技媒體、Bluesky 公開社群與每日 YouTube 訂閱推播整理最新消息；每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
         </p>
         <div className="hero-meta">
           <span className="live-pill"><i /> 雷達運作中</span>
@@ -150,7 +150,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
         <div>
           <span className="control-label">消息從哪裡來？</span>
           <div className="source-filter" role="group" aria-label="篩選消息來源">
-            {(["all", "youtube", "x", "news"] as const).map((key) => (
+            {(["all", "youtube", "bluesky", "news"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -162,8 +162,8 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
                   ? "全部"
                   : key === "youtube"
                     ? "YouTube"
-                    : key === "x"
-                        ? "X 動態"
+                    : key === "bluesky"
+                        ? "Bluesky 社群"
                         : "新聞網站"}
               </button>
             ))}
@@ -171,13 +171,10 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
         </div>
       </section>
 
-      {(data.errors.length > 0 || data.xStatus === "needs-key") && (
+      {data.errors.length > 0 && (
         <aside className="status-note" role="status">
           <strong>資料狀態</strong>
           <span>{data.errors.join("；")}</span>
-          {data.xStatus === "needs-key" && (
-            <span>X 即時內容需設定官方 API 金鑰，目前先顯示其他公開來源。</span>
-          )}
         </aside>
       )}
 
@@ -196,8 +193,8 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
               <div className="card-index">{String(index + 1).padStart(2, "0")}</div>
               <div className="source-row">
                 <span className={`source-badge ${item.sourceType}`}>
-                  {item.sourceType === "x"
-                    ? "X"
+                  {item.sourceType === "bluesky"
+                    ? "BSKY"
                     : item.sourceType === "youtube"
                       ? "YT"
                       : "NEWS"}
@@ -250,8 +247,8 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
         </div>
         <div className="source-map">
           <div><span>官方</span><strong>OpenAI · Google AI · DeepMind</strong><p>先看產品與研究團隊自己發布的內容。</p></div>
-          <div><span>媒體</span><strong>MIT Tech Review · TechCrunch</strong><p>補上產業脈絡、爭議與不同觀點。</p></div>
-          <div><span>社群</span><strong>X 即時動態</strong><p>使用官方 API；保留作者、時間與原文連結。</p></div>
+          <div><span>繁中</span><strong>iThome · 科技新報 · Google 台灣</strong><p>優先補進台灣讀者能直接理解的科技與 AI 消息。</p></div>
+          <div><span>社群</span><strong>Bluesky 公開動態</strong><p>免金鑰讀取公開作者貼文，保留作者、時間與原文連結。</p></div>
           <div><span>訂閱</span><strong>YouTube 每日新片</strong><p>接收 Claude Code 的既有推播，只列新片，不產生摘要。</p></div>
         </div>
       </section>

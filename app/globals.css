@@ -119,7 +119,7 @@ nav a:hover { color: var(--ink); }
 .source-row time { margin-left: auto; }
 .source-badge { display: inline-flex; align-items: center; justify-content: center; height: 24px; min-width: 34px; border-radius: 5px; color: var(--night); font-weight: 800; }
 .source-badge.news { background: var(--cyan); }
-.source-badge.x { background: #f4f5f5; }
+.source-badge.bluesky { background: #63b3ff; }
 .source-badge.youtube { background: #ff6b72; }
 .news-card h3 { margin: 25px 0 22px; font-size: clamp(21px, 2.5vw, 29px); line-height: 1.3; letter-spacing: -.03em; max-width: 92%; }
 .plain-box { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 19px 0; }

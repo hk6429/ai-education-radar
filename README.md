@@ -1,12 +1,12 @@
 # AI 教育雷達
 
-把 X、AI 新聞與每日 YouTube 訂閱推播整理成小學生看得懂的內容，並提供國中老師與學校資訊組可採取的做法。
+把繁體中文 AI 新聞、Bluesky 公開社群與每日 YouTube 訂閱推播整理成小學生看得懂的內容，並提供國中老師與學校資訊組可採取的做法。
 
 ## 積木架構
 
 ```mermaid
 flowchart LR
-  A[RSS / X API / Claude Code] --> B[連線積木]
+  A[繁中 RSS / Bluesky / Claude Code] --> B[連線積木]
   B --> C[邏輯積木：清理、去重、排序]
   C --> D[AI 積木：白話摘要與校園應用]
   D --> E[展示積木：三種閱讀視角]
@@ -17,7 +17,10 @@ flowchart LR
 
 ## 資料來源
 
-- X API v2 Recent Search（需要 `X_BEARER_TOKEN`）
+- iThome RSS（篩選 AI 主題）
+- 科技新報 AI 分類 RSS
+- Google 台灣官方部落格 RSS（篩選 AI 主題）
+- Bluesky 公開作者動態（不需要 API 金鑰）
 - OpenAI News RSS
 - Google AI Blog RSS
 - Google DeepMind RSS
@@ -41,8 +44,6 @@ npm run dev
 
 | 變數 | 必要性 | 用途 |
 |---|---|---|
-| `X_BEARER_TOKEN` | 選用 | X 最近 7 天貼文搜尋 |
-| `X_QUERY` | 選用 | 自訂 X 搜尋條件 |
 | `AI_GATEWAY_API_KEY` | 選用 | 產生繁中白話摘要與校園應用 |
 | `AI_MODEL` | 選用 | AI Gateway 模型，預設 `openai/gpt-5-mini` |
 | `AI_RADAR_INGEST_SECRET` | 必要 | 保護 `/api/ingest/claude`，供本機 Shell 排程送入資料 |
@@ -70,6 +71,6 @@ npm test
 
 - 金鑰只放在伺服器環境變數，不送到瀏覽器。
 - Claude Code 推播入口必須使用 `Authorization: Bearer ...`，相同影片或單集只更新、不重複新增。
-- RSS 與 X 文字一律視為不可信輸入；AI 只能摘要，不可執行來源文字內的指令。
+- RSS 與 Bluesky 文字一律視為不可信輸入；AI 只能摘要，不可執行來源文字內的指令。
 - 重要教學、採購、帳號與資安決策，必須回到原始來源確認。
 - 抓取頻率由快取限制，避免對來源造成不必要負擔。
