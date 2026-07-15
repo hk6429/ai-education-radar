@@ -15,6 +15,10 @@ function createFakeD1() {
           return this;
         },
         async run() {
+          if (/DELETE FROM radar_items/i.test(sql)) {
+            const deleted = rows.delete(`${values[0]}:${values[1]}`);
+            return { success: true, meta: { changes: deleted ? 1 : 0 } };
+          }
           if (/INSERT INTO radar_items/i.test(sql)) {
             const [id, sourceType, sourceId, channel, title, url, publishedAt, summary, createdAt, updatedAt] = values;
             const key = `${sourceType}:${sourceId}`;
@@ -152,4 +156,15 @@ test("accepts authenticated Claude Code pushes and deduplicates source items", a
   );
   assert.equal(duplicate.status, 200);
   assert.deepEqual(await duplicate.json(), { ok: true, deduplicated: true });
+
+  const removed = await render(
+    "/api/ingest/claude?sourceId=video-123",
+    {
+      method: "DELETE",
+      headers: { authorization: "Bearer test-secret" },
+    },
+    { DB, AI_RADAR_INGEST_SECRET: "test-secret" },
+  );
+  assert.equal(removed.status, 200);
+  assert.deepEqual(await removed.json(), { ok: true, deleted: true });
 });

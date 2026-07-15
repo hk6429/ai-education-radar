@@ -122,3 +122,16 @@ export async function listRadarItems(limit = 30): Promise<StoredRadarItem[]> {
     .all<StoredRadarItem>();
   return result.results;
 }
+
+export async function deleteRadarItem(
+  sourceType: IngestSourceType,
+  sourceId: string,
+): Promise<boolean> {
+  const database = await getDatabase();
+  await ensureSchema(database);
+  const result = await database
+    .prepare("DELETE FROM radar_items WHERE source_type = ? AND source_id = ?")
+    .bind(sourceType, sourceId)
+    .run();
+  return Number(result.meta.changes ?? 0) > 0;
+}

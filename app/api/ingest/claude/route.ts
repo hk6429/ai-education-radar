@@ -1,4 +1,5 @@
 import {
+  deleteRadarItem,
   getRadarEnv,
   type IngestItem,
   upsertRadarItem,
@@ -17,6 +18,22 @@ async function isAuthorized(request: Request): Promise<boolean> {
     difference |= provided.charCodeAt(index) ^ expected.charCodeAt(index);
   }
   return difference === 0;
+}
+
+export async function DELETE(request: Request) {
+  if (!(await isAuthorized(request))) {
+    return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+  const sourceId = cleanString(new URL(request.url).searchParams.get("sourceId"), 500);
+  if (!sourceId) {
+    return Response.json({ ok: false, error: "invalid_source_id" }, { status: 400 });
+  }
+  try {
+    const deleted = await deleteRadarItem("youtube", sourceId);
+    return Response.json({ ok: true, deleted });
+  } catch {
+    return Response.json({ ok: false, error: "storage_unavailable" }, { status: 503 });
+  }
 }
 
 function cleanString(value: unknown, maxLength: number): string {
