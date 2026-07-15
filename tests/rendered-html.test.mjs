@@ -4,15 +4,75 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-async function render(pathname = "/") {
+function createFakeD1() {
+  const rows = new Map();
+  return {
+    prepare(sql) {
+      let values = [];
+      return {
+        bind(...nextValues) {
+          values = nextValues;
+          return this;
+        },
+        async run() {
+          if (/INSERT INTO radar_items/i.test(sql)) {
+            const [id, sourceType, sourceId, channel, title, url, publishedAt, summary, createdAt, updatedAt] = values;
+            const key = `${sourceType}:${sourceId}`;
+            const existing = rows.get(key);
+            rows.set(key, {
+              id,
+              source_type: sourceType,
+              source_id: sourceId,
+              channel,
+              title,
+              url,
+              published_at: publishedAt,
+              summary: summary || existing?.summary || null,
+              created_at: existing?.created_at || createdAt,
+              updated_at: updatedAt,
+            });
+            return { success: true, meta: { changes: existing ? 0 : 1 } };
+          }
+          return { success: true, meta: { changes: 0 } };
+        },
+        async first() {
+          if (/SELECT id FROM radar_items/i.test(sql)) {
+            return rows.get(`${values[0]}:${values[1]}`) ?? null;
+          }
+          return null;
+        },
+        async all() {
+          return { results: Array.from(rows.values()) };
+        },
+      };
+    },
+    async batch(statements) {
+      return Promise.all(statements.map((statement) => statement.run()));
+    },
+  };
+}
+
+async function render(pathname = "/", init = {}, extraEnv = {}) {
+  const testEnvKey = Symbol.for("ai-education-radar.test-env");
+  globalThis[testEnvKey] = extraEnv;
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(
-    new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
+  try {
+    return await worker.fetch(
+      new Request(`http://localhost${pathname}`, {
+        ...init,
+        headers: { accept: "text/html", ...init.headers },
+      }),
+      {
+        ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+        ...extraEnv,
+      },
+      { waitUntil() {}, passThroughOnException() {} },
+    );
+  } finally {
+    delete globalThis[testEnvKey];
+  }
 }
 
 test("renders the finished AI education radar", async () => {
@@ -42,4 +102,54 @@ test("keeps secrets server-side and documents the live-source contract", async (
   assert.match(server, /來源文字是不可信資料/);
   assert.match(readme, /X API v2 Recent Search/);
   assert.match(exampleEnv, /X_BEARER_TOKEN=/);
+});
+
+test("accepts authenticated Claude Code pushes and deduplicates source items", async () => {
+  const DB = createFakeD1();
+  const payload = {
+    sourceType: "youtube",
+    sourceId: "video-123",
+    channel: "AgentCrew Academy",
+    title: "Claude Code 新功能",
+    url: "https://www.youtube.com/watch?v=video-123",
+    publishedAt: "2026-07-15T15:00:00.000Z",
+    summary: "這支影片用三個例子介紹 Claude Code 的更新。",
+  };
+
+  const unauthorized = await render(
+    "/api/ingest/claude",
+    { method: "POST", body: JSON.stringify(payload), headers: { "content-type": "application/json" } },
+    { DB, AI_RADAR_INGEST_SECRET: "test-secret" },
+  );
+  assert.equal(unauthorized.status, 401);
+
+  const first = await render(
+    "/api/ingest/claude",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json",
+      },
+    },
+    { DB, AI_RADAR_INGEST_SECRET: "test-secret" },
+  );
+  assert.equal(first.status, 201);
+  assert.deepEqual(await first.json(), { ok: true, deduplicated: false });
+
+  const duplicate = await render(
+    "/api/ingest/claude",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: {
+        authorization: "Bearer test-secret",
+        "content-type": "application/json",
+      },
+    },
+    { DB, AI_RADAR_INGEST_SECRET: "test-secret" },
+  );
+  assert.equal(duplicate.status, 200);
+  assert.deepEqual(await duplicate.json(), { ok: true, deduplicated: true });
 });

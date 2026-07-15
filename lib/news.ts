@@ -1,7 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
+import { listRadarItems } from "../db/radar-items";
 
 export type Audience = "child" | "teacher" | "it";
-export type SourceType = "x" | "news";
+export type SourceType = "x" | "news" | "youtube";
 
 export type DigestItem = {
   id: string;
@@ -22,6 +23,7 @@ type RawItem = Omit<
   "childSummary" | "teacherUse" | "itUse" | "caution" | "tags"
 > & {
   text: string;
+  providedSummary?: string;
 };
 
 export type NewsResponse = {
@@ -250,6 +252,16 @@ async function fetchX(): Promise<{
 }
 
 function fallbackDigest(item: RawItem): DigestItem {
+  if (item.sourceType === "youtube") {
+    return {
+      ...item,
+      childSummary: `今天新增一支訂閱影片：${item.title}`,
+      teacherUse: "先開啟原始影片確認內容，再決定是否適合課堂、備課或教師共備。",
+      itUse: "這是訂閱影片更新；如要校內分享，請先確認內容、平台權限與觀看限制。",
+      caution: "網站只列出新片，不產生摘要；內容請以原始影片為準。",
+      tags: ["YouTube", "今日新片"],
+    };
+  }
   const text = (item.text || item.title).slice(0, 150);
   const lower = `${item.title} ${item.text}`.toLowerCase();
   const isSafety = /safety|policy|privacy|security|安全|隱私|政策/.test(lower);
@@ -258,7 +270,8 @@ function fallbackDigest(item: RawItem): DigestItem {
 
   return {
     ...item,
-    childSummary: `這則消息在說：${plainText(text)}`,
+    childSummary:
+      plainText(item.providedSummary) || `這則消息在說：${plainText(text)}`,
     teacherUse: isMedia
       ? "可設計圖文比較活動，讓學生觀察 AI 如何理解不同形式的訊息。"
       : isSafety
@@ -283,7 +296,9 @@ async function summarizeWithAI(items: RawItem[]): Promise<DigestItem[]> {
   const key = process.env.AI_GATEWAY_API_KEY;
   if (!key || items.length === 0) return items.map(fallbackDigest);
 
-  const compact = items.slice(0, 16).map(({ id, title, source, text }) => ({
+  const summarizableItems = items.filter((item) => item.sourceType !== "youtube");
+  if (summarizableItems.length === 0) return items.map(fallbackDigest);
+  const compact = summarizableItems.slice(0, 16).map(({ id, title, source, text }) => ({
     id,
     title,
     source,
@@ -325,6 +340,7 @@ async function summarizeWithAI(items: RawItem[]): Promise<DigestItem[]> {
   const byId = new Map(parsed.map((entry) => [entry.id, entry]));
 
   return items.map((item) => {
+    if (item.sourceType === "youtube") return fallbackDigest(item);
     const fallback = fallbackDigest(item);
     const ai = byId.get(item.id);
     if (!ai) return fallback;
@@ -343,6 +359,21 @@ async function summarizeWithAI(items: RawItem[]): Promise<DigestItem[]> {
 
 export async function getLatestNews(): Promise<NewsResponse> {
   const errors: string[] = [];
+  let pushedItems: RawItem[] = [];
+  try {
+    pushedItems = (await listRadarItems()).map((item) => ({
+      id: item.id,
+      title: item.title,
+      url: item.url,
+      source: item.channel,
+      sourceType: item.source_type,
+      publishedAt: safeDate(item.published_at),
+      text: item.summary || item.title,
+      ...(item.summary ? { providedSummary: item.summary } : {}),
+    }));
+  } catch {
+    errors.push("Claude Code 推播資料庫暫時無法讀取");
+  }
   const feedResults = await Promise.allSettled(RSS_FEEDS.map(fetchFeed));
   const feedItems = feedResults.flatMap((result, index) => {
     if (result.status === "fulfilled") return result.value;
@@ -362,7 +393,7 @@ export async function getLatestNews(): Promise<NewsResponse> {
   }
 
   const deduplicated = Array.from(
-    new Map([...xItems, ...feedItems].map((item) => [item.url, item])).values(),
+    new Map([...pushedItems, ...xItems, ...feedItems].map((item) => [item.url, item])).values(),
   )
     .sort(
       (a, b) =>
@@ -392,7 +423,9 @@ export async function getLatestNews(): Promise<NewsResponse> {
     generatedAt: new Date().toISOString(),
     liveSourceCount: feedResults.filter(
       (result) => result.status === "fulfilled" && result.value.length > 0,
-    ).length + (xStatus === "live" ? 1 : 0),
+    ).length +
+      (xStatus === "live" ? 1 : 0) +
+      new Set(pushedItems.map((item) => item.sourceType)).size,
     xStatus,
     aiStatus,
     errors,

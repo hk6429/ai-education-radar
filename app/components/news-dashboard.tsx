@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Audience, DigestItem, NewsResponse } from "../../lib/news";
+import type { Audience, DigestItem, NewsResponse, SourceType } from "../../lib/news";
 
 const audienceLabels: Record<Audience, string> = {
   child: "小學生也懂",
@@ -36,7 +36,7 @@ function viewText(item: DigestItem, audience: Audience) {
 
 export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) {
   const [audience, setAudience] = useState<Audience>("child");
-  const [source, setSource] = useState<"all" | "x" | "news">("all");
+  const [source, setSource] = useState<"all" | SourceType>("all");
   const [data, setData] = useState<NewsResponse>({
     items: initialItems,
     generatedAt: new Date().toISOString(),
@@ -121,7 +121,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           <em>翻成孩子也懂的話。</em>
         </h1>
         <p className="hero-copy">
-          從 X 與可信新聞來源整理最新消息，不追著術語跑；每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
+          從 X、可信新聞與每日 YouTube 訂閱推播整理最新消息，不追著術語跑；每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
         </p>
         <div className="hero-meta">
           <span className="live-pill"><i /> 雷達運作中</span>
@@ -150,7 +150,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
         <div>
           <span className="control-label">消息從哪裡來？</span>
           <div className="source-filter" role="group" aria-label="篩選消息來源">
-            {(["all", "x", "news"] as const).map((key) => (
+            {(["all", "youtube", "x", "news"] as const).map((key) => (
               <button
                 key={key}
                 type="button"
@@ -158,7 +158,13 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
                 aria-pressed={source === key}
                 onClick={() => setSource(key)}
               >
-                {key === "all" ? "全部" : key === "x" ? "X 動態" : "新聞網站"}
+                {key === "all"
+                  ? "全部"
+                  : key === "youtube"
+                    ? "YouTube"
+                    : key === "x"
+                        ? "X 動態"
+                        : "新聞網站"}
               </button>
             ))}
           </div>
@@ -190,7 +196,11 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
               <div className="card-index">{String(index + 1).padStart(2, "0")}</div>
               <div className="source-row">
                 <span className={`source-badge ${item.sourceType}`}>
-                  {item.sourceType === "x" ? "X" : "NEWS"}
+                  {item.sourceType === "x"
+                    ? "X"
+                    : item.sourceType === "youtube"
+                      ? "YT"
+                      : "NEWS"}
                 </span>
                 <span>{item.source}</span>
                 <time dateTime={item.publishedAt}>{formatTime(item.publishedAt)}</time>
@@ -214,7 +224,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           {items.length === 0 && (
             <div className="empty-state">
               <strong>這個來源目前沒有消息</strong>
-              <p>換成「全部」或「新聞網站」，就能繼續閱讀。</p>
+              <p>換成「全部」或其他來源，就能繼續閱讀。</p>
             </div>
           )}
         </div>
@@ -242,6 +252,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           <div><span>官方</span><strong>OpenAI · Google AI · DeepMind</strong><p>先看產品與研究團隊自己發布的內容。</p></div>
           <div><span>媒體</span><strong>MIT Tech Review · TechCrunch</strong><p>補上產業脈絡、爭議與不同觀點。</p></div>
           <div><span>社群</span><strong>X 即時動態</strong><p>使用官方 API；保留作者、時間與原文連結。</p></div>
+          <div><span>訂閱</span><strong>YouTube 每日新片</strong><p>接收 Claude Code 的既有推播，只列新片，不產生摘要。</p></div>
         </div>
       </section>
 

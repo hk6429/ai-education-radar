@@ -120,6 +120,7 @@ nav a:hover { color: var(--ink); }
 .source-badge { display: inline-flex; align-items: center; justify-content: center; height: 24px; min-width: 34px; border-radius: 5px; color: var(--night); font-weight: 800; }
 .source-badge.news { background: var(--cyan); }
 .source-badge.x { background: #f4f5f5; }
+.source-badge.youtube { background: #ff6b72; }
 .news-card h3 { margin: 25px 0 22px; font-size: clamp(21px, 2.5vw, 29px); line-height: 1.3; letter-spacing: -.03em; max-width: 92%; }
 .plain-box { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 19px 0; }
 .plain-box span { color: var(--acid); font-size: 12px; font-weight: 750; letter-spacing: .06em; }
@@ -140,7 +141,7 @@ nav a:hover { color: var(--ink); }
 
 .sources-section { padding: 90px 0 110px; border-top: 1px solid var(--line); }
 .sources-section > div:first-child { margin-bottom: 35px; }
-.source-map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.source-map { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
 .source-map > div { padding: 25px; min-height: 180px; border: 1px solid var(--line); background: rgba(255,255,255,.025); border-radius: 15px; }
 .source-map span { display: inline-block; color: var(--cyan); font: 650 11px/1 var(--font-geist-mono), monospace; border: 1px solid rgba(60,239,200,.25); padding: 6px 8px; border-radius: 5px; }
 .source-map strong { display: block; margin-top: 20px; font-size: 18px; }
