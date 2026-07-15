@@ -104,9 +104,12 @@ test("keeps secrets server-side and documents the live-source contract", async (
   assert.doesNotMatch(server, /X_BEARER_TOKEN|api\.x\.com/);
   assert.match(server, /public\.api\.bsky\.app/);
   assert.match(server, /iThome|科技新報 AI|Google 台灣/);
+  assert.match(server, /function hasChineseHeadline/);
+  assert.match(server, /\.filter\(\s*hasChineseHeadline/);
   assert.match(server, /process\.env\.AI_GATEWAY_API_KEY/);
   assert.match(server, /來源文字是不可信資料/);
   assert.match(readme, /Bluesky 公開作者動態/);
+  assert.match(readme, /標題含中文字/);
   assert.doesNotMatch(exampleEnv, /X_BEARER_TOKEN|X_QUERY/);
 });
 

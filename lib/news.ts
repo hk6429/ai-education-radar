@@ -188,6 +188,10 @@ function isAiRelevant(value: string): boolean {
   );
 }
 
+function hasChineseHeadline(item: RawItem): boolean {
+  return /[\u3400-\u9fff]/u.test(item.title);
+}
+
 function selectBalancedItems(items: RawItem[], limit = 24): RawItem[] {
   const sorted = [...items].sort(
     (a, b) =>
@@ -467,11 +471,12 @@ export async function getLatestNews(): Promise<NewsResponse> {
     : "error";
   if (socialStatus === "error") errors.push("Bluesky 來源暫時無法讀取");
 
-  const deduplicated = selectBalancedItems(Array.from(
-    new Map(
-      [...pushedItems, ...socialItems, ...feedItems].map((item) => [item.url, item]),
-    ).values(),
-  ));
+  const visibleItems = [...pushedItems, ...socialItems, ...feedItems].filter(
+    hasChineseHeadline,
+  );
+  const deduplicated = selectBalancedItems(
+    Array.from(new Map(visibleItems.map((item) => [item.url, item])).values()),
+  );
 
   let aiStatus: NewsResponse["aiStatus"] = process.env.AI_GATEWAY_API_KEY
     ? "live"
@@ -493,11 +498,7 @@ export async function getLatestNews(): Promise<NewsResponse> {
   return {
     items,
     generatedAt: new Date().toISOString(),
-    liveSourceCount: feedResults.filter(
-      (result) => result.status === "fulfilled" && result.value.length > 0,
-    ).length +
-      (socialItems.length > 0 ? 1 : 0) +
-      new Set(pushedItems.map((item) => item.sourceType)).size,
+    liveSourceCount: new Set(visibleItems.map((item) => item.source)).size,
     socialStatus,
     aiStatus,
     errors,

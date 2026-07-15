@@ -121,7 +121,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           <em>翻成孩子也懂的話。</em>
         </h1>
         <p className="hero-copy">
-          從繁體中文科技媒體、Bluesky 公開社群與每日 YouTube 訂閱推播整理最新消息；每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
+          從繁體中文科技媒體、Bluesky 公開社群與每日 YouTube 訂閱推播整理最新消息；只顯示標題含中文字的內容，每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
         </p>
         <div className="hero-meta">
           <span className="live-pill"><i /> 雷達運作中</span>
