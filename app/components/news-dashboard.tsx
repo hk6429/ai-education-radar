@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Audience, DigestItem, NewsResponse, SourceType } from "../../lib/news";
+import type {
+  Audience,
+  DigestItem,
+  NewsCategory,
+  NewsResponse,
+  SourceType,
+} from "../../lib/news";
 
 const audienceLabels: Record<Audience, string> = {
   child: "小學生也懂",
@@ -14,6 +20,14 @@ const audienceHeadings: Record<Audience, string> = {
   teacher: "老師可以怎麼用",
   it: "資訊組可以怎麼做",
 };
+
+const categories: NewsCategory[] = [
+  "教育現場",
+  "政策治理",
+  "資安風險",
+  "工具應用",
+  "產業趨勢",
+];
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -37,6 +51,7 @@ function viewText(item: DigestItem, audience: Audience) {
 export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) {
   const [audience, setAudience] = useState<Audience>("child");
   const [source, setSource] = useState<"all" | SourceType>("all");
+  const [category, setCategory] = useState<"all" | NewsCategory>("all");
   const [data, setData] = useState<NewsResponse>({
     items: initialItems,
     generatedAt: new Date().toISOString(),
@@ -91,8 +106,12 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
 
   const items = useMemo(
     () =>
-      data.items.filter((item) => source === "all" || item.sourceType === source),
-    [data.items, source],
+      data.items.filter(
+        (item) =>
+          (source === "all" || item.sourceType === source) &&
+          (category === "all" || item.category === category),
+      ),
+    [category, data.items, source],
   );
 
   return (
@@ -169,6 +188,22 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
             ))}
           </div>
         </div>
+        <div>
+          <span className="control-label">我想看哪一類？</span>
+          <div className="category-filter" role="group" aria-label="篩選消息類別">
+            {(["all", ...categories] as const).map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={category === key ? "active" : ""}
+                aria-pressed={category === key}
+                onClick={() => setCategory(key)}
+              >
+                {key === "all" ? "全部類別" : key}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
       {data.errors.length > 0 && (
@@ -200,6 +235,10 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
                       : "NEWS"}
                 </span>
                 <span>{item.source}</span>
+                <span className="category-badge">{item.category}</span>
+                {item.importance === "重要" && (
+                  <span className="importance-badge">重要</span>
+                )}
                 <time dateTime={item.publishedAt}>{formatTime(item.publishedAt)}</time>
               </div>
               <h3>{item.title}</h3>
@@ -247,7 +286,9 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
         </div>
         <div className="source-map">
           <div><span>官方</span><strong>OpenAI · Google AI · DeepMind</strong><p>先看產品與研究團隊自己發布的內容。</p></div>
-          <div><span>繁中</span><strong>iThome · 科技新報 · Google 台灣</strong><p>優先補進台灣讀者能直接理解的科技與 AI 消息。</p></div>
+          <div><span>台灣</span><strong>iThome · 科技新報 · 中央社</strong><p>補進台灣科技、產業與重大 AI 發展，只保留 AI 相關內容。</p></div>
+          <div><span>校園</span><strong>科技新報科技教育 · Google 台灣</strong><p>留意教師、學生、學習與校園應用相關消息。</p></div>
+          <div><span>資安</span><strong>TWCERT/CC</strong><p>遇到 AI、帳號、個資、漏洞與攻擊風險時，標成重要消息。</p></div>
           <div><span>社群</span><strong>Bluesky 公開動態</strong><p>免金鑰讀取公開作者貼文，保留作者、時間與原文連結。</p></div>
           <div><span>訂閱</span><strong>YouTube 每日新片</strong><p>接收 Claude Code 的既有推播，只列新片，不產生摘要。</p></div>
         </div>

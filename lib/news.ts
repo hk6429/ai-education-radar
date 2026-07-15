@@ -3,6 +3,12 @@ import { listRadarItems } from "../db/radar-items";
 
 export type Audience = "child" | "teacher" | "it";
 export type SourceType = "bluesky" | "news" | "youtube";
+export type NewsCategory =
+  | "教育現場"
+  | "政策治理"
+  | "資安風險"
+  | "工具應用"
+  | "產業趨勢";
 
 export type DigestItem = {
   id: string;
@@ -11,6 +17,8 @@ export type DigestItem = {
   source: string;
   sourceType: SourceType;
   publishedAt: string;
+  category: NewsCategory;
+  importance: "重要" | "一般";
   childSummary: string;
   teacherUse: string;
   itUse: string;
@@ -20,7 +28,13 @@ export type DigestItem = {
 
 type RawItem = Omit<
   DigestItem,
-  "childSummary" | "teacherUse" | "itUse" | "caution" | "tags"
+  | "category"
+  | "importance"
+  | "childSummary"
+  | "teacherUse"
+  | "itUse"
+  | "caution"
+  | "tags"
 > & {
   text: string;
   providedSummary?: string;
@@ -53,6 +67,21 @@ const RSS_FEEDS = [
     url: "https://taiwan.googleblog.com/feeds/posts/default?alt=rss",
     aiOnly: true,
   },
+  {
+    name: "中央社科技",
+    url: "https://feeds.feedburner.com/rsscna/technology",
+    aiOnly: true,
+  },
+  {
+    name: "科技新報科技教育",
+    url: "https://technews.tw/category/科技教育/feed/",
+    aiOnly: true,
+  },
+  {
+    name: "TWCERT/CC",
+    url: "https://www.twcert.org.tw/tw/rss-104-1.xml",
+    aiOnly: true,
+  },
   { name: "OpenAI", url: "https://openai.com/news/rss.xml" },
   { name: "Google AI", url: "https://blog.google/technology/ai/rss/" },
   { name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml" },
@@ -73,7 +102,14 @@ const BLUESKY_ACCOUNTS = [
   { handle: "theverge.com", name: "The Verge" },
 ] as const;
 
-const TRADITIONAL_SOURCE_NAMES = ["iThome", "科技新報 AI", "Google 台灣"] as const;
+const TRADITIONAL_SOURCE_NAMES = [
+  "iThome",
+  "科技新報 AI",
+  "Google 台灣",
+  "中央社科技",
+  "科技新報科技教育",
+  "TWCERT/CC",
+] as const;
 
 const DEMO_ITEMS: DigestItem[] = [
   {
@@ -83,6 +119,8 @@ const DEMO_ITEMS: DigestItem[] = [
     source: "示範資料",
     sourceType: "news",
     publishedAt: "2026-07-15T08:00:00.000Z",
+    category: "工具應用",
+    importance: "一般",
     childSummary:
       "以前 AI 常常只會一種工作，現在它像多帶了眼睛和耳朵，可以一起看圖、讀字和聽聲音。",
     teacherUse:
@@ -99,6 +137,8 @@ const DEMO_ITEMS: DigestItem[] = [
     source: "示範資料",
     sourceType: "news",
     publishedAt: "2026-07-15T06:30:00.000Z",
+    category: "政策治理",
+    importance: "重要",
     childSummary:
       "AI 很像一位回答很快的同學，但它也可能答錯，所以學校要一起訂出安全又公平的使用方法。",
     teacherUse:
@@ -115,6 +155,8 @@ const DEMO_ITEMS: DigestItem[] = [
     source: "示範資料",
     sourceType: "news",
     publishedAt: "2026-07-15T05:10:00.000Z",
+    category: "工具應用",
+    importance: "一般",
     childSummary:
       "當資料像一座很大的書山，AI 可以先幫忙分類和找重點，但最後仍要由人檢查。",
     teacherUse:
@@ -192,6 +234,36 @@ function hasChineseHeadline(item: RawItem): boolean {
   return /[\u3400-\u9fff]/u.test(item.title);
 }
 
+function classifyItem(item: RawItem): NewsCategory {
+  const value = `${item.source} ${item.title} ${item.text}`;
+  if (
+    item.source === "TWCERT/CC" ||
+    /資安|漏洞|攻擊|外洩|惡意|勒索|釣魚|隱私|個資|憑證|風險/.test(value)
+  ) {
+    return "資安風險";
+  }
+  if (
+    item.source === "科技新報科技教育" ||
+    /教育|教學|教師|老師|學生|學校|校園|課堂|素養|學習/.test(value)
+  ) {
+    return "教育現場";
+  }
+  if (/政策|法案|法規|治理|規範|指引|政府|數發部|教育部|國科會/.test(value)) {
+    return "政策治理";
+  }
+  if (/工具|功能|模型|助理|應用|生成|代理|平台|軟體|程式|開發/.test(value)) {
+    return "工具應用";
+  }
+  return "產業趨勢";
+}
+
+function isImportantItem(item: RawItem): boolean {
+  const value = `${item.source} ${item.title} ${item.text}`;
+  return /TWCERT\/CC|教育部|數發部|國科會|校園|學校|學生|兒少|法案|法規|規範|指引|資安|漏洞|攻擊|外洩|隱私|個資|停用|禁用/.test(
+    value,
+  );
+}
+
 function selectBalancedItems(items: RawItem[], limit = 24): RawItem[] {
   const sorted = [...items].sort(
     (a, b) =>
@@ -214,6 +286,7 @@ function selectBalancedItems(items: RawItem[], limit = 24): RawItem[] {
         .slice(0, 2),
     );
   }
+  add(sorted.filter(isImportantItem).slice(0, 8));
   add(sorted.filter((item) => item.sourceType === "bluesky").slice(0, 6));
   add(sorted.filter((item) => item.sourceType === "youtube").slice(0, 6));
   add(sorted);
@@ -222,6 +295,7 @@ function selectBalancedItems(items: RawItem[], limit = 24): RawItem[] {
     .slice(0, limit)
     .sort(
       (a, b) =>
+        Number(isImportantItem(b)) - Number(isImportantItem(a)) ||
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     );
 }
@@ -329,9 +403,13 @@ async function fetchBlueskyAccount(
 }
 
 function fallbackDigest(item: RawItem): DigestItem {
+  const category = classifyItem(item);
+  const importance = isImportantItem(item) ? "重要" : "一般";
   if (item.sourceType === "youtube") {
     return {
       ...item,
+      category,
+      importance,
       childSummary: `今天新增一支訂閱影片：${item.title}`,
       teacherUse: "先開啟原始影片確認內容，再決定是否適合課堂、備課或教師共備。",
       itUse: "這是訂閱影片更新；如要校內分享，請先確認內容、平台權限與觀看限制。",
@@ -347,6 +425,8 @@ function fallbackDigest(item: RawItem): DigestItem {
 
   return {
     ...item,
+    category,
+    importance,
     childSummary:
       plainText(item.providedSummary) || `這則消息在說：${plainText(text)}`,
     teacherUse: isMedia

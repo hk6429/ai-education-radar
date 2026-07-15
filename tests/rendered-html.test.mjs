@@ -90,6 +90,9 @@ test("renders the finished AI education radar", async () => {
   assert.match(html, /小學生也懂/);
   assert.match(html, /國中老師/);
   assert.match(html, /資訊組/);
+  assert.match(html, /教育現場/);
+  assert.match(html, /政策治理/);
+  assert.match(html, /資安風險/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
 
@@ -103,7 +106,11 @@ test("keeps secrets server-side and documents the live-source contract", async (
   assert.doesNotMatch(client, /AI_GATEWAY_API_KEY/);
   assert.doesNotMatch(server, /X_BEARER_TOKEN|api\.x\.com/);
   assert.match(server, /public\.api\.bsky\.app/);
-  assert.match(server, /iThome|科技新報 AI|Google 台灣/);
+  assert.match(server, /中央社科技/);
+  assert.match(server, /科技新報科技教育/);
+  assert.match(server, /TWCERT\/CC/);
+  assert.match(server, /function classifyItem/);
+  assert.match(server, /function isImportantItem/);
   assert.match(server, /function hasChineseHeadline/);
   assert.match(server, /\.filter\(\s*hasChineseHeadline/);
   assert.match(server, /process\.env\.AI_GATEWAY_API_KEY/);
