@@ -73,6 +73,8 @@ const BLUESKY_ACCOUNTS = [
   { handle: "theverge.com", name: "The Verge" },
 ] as const;
 
+const TRADITIONAL_SOURCE_NAMES = ["iThome", "科技新報 AI", "Google 台灣"] as const;
+
 const DEMO_ITEMS: DigestItem[] = [
   {
     id: "demo-1",
@@ -184,6 +186,40 @@ function isAiRelevant(value: string): boolean {
   return /(?:\bAI\b|人工智慧|生成式|ChatGPT|OpenAI|Anthropic|Claude|Gemini|Copilot|LLM|machine learning|artificial intelligence|language model|neural network)/i.test(
     value,
   );
+}
+
+function selectBalancedItems(items: RawItem[], limit = 24): RawItem[] {
+  const sorted = [...items].sort(
+    (a, b) =>
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+  );
+  const selected = new Map<string, RawItem>();
+  const add = (candidates: RawItem[]) => {
+    for (const item of candidates) selected.set(item.url, item);
+  };
+  const recentCutoff = Date.now() - 30 * 24 * 60 * 60 * 1_000;
+
+  for (const source of TRADITIONAL_SOURCE_NAMES) {
+    add(
+      sorted
+        .filter(
+          (item) =>
+            item.source === source &&
+            new Date(item.publishedAt).getTime() >= recentCutoff,
+        )
+        .slice(0, 2),
+    );
+  }
+  add(sorted.filter((item) => item.sourceType === "bluesky").slice(0, 6));
+  add(sorted.filter((item) => item.sourceType === "youtube").slice(0, 6));
+  add(sorted);
+
+  return Array.from(selected.values())
+    .slice(0, limit)
+    .sort(
+      (a, b) =>
+        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
+    );
 }
 
 async function fetchFeed(source: RssSource): Promise<RawItem[]> {
@@ -431,16 +467,11 @@ export async function getLatestNews(): Promise<NewsResponse> {
     : "error";
   if (socialStatus === "error") errors.push("Bluesky 來源暫時無法讀取");
 
-  const deduplicated = Array.from(
+  const deduplicated = selectBalancedItems(Array.from(
     new Map(
       [...pushedItems, ...socialItems, ...feedItems].map((item) => [item.url, item]),
     ).values(),
-  )
-    .sort(
-      (a, b) =>
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-    )
-    .slice(0, 24);
+  ));
 
   let aiStatus: NewsResponse["aiStatus"] = process.env.AI_GATEWAY_API_KEY
     ? "live"
