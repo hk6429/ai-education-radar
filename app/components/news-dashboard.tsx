@@ -140,7 +140,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           <em>翻成孩子也懂的話。</em>
         </h1>
         <p className="hero-copy">
-          從繁體中文科技媒體、Bluesky 公開社群與每日 YouTube 訂閱推播整理最新消息；只顯示標題含中文字的內容，每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
+          從繁體中文科技媒體、Bluesky 公開社群與每兩小時 YouTube 訂閱推播整理最新消息；只顯示標題含中文字的內容，每一則都告訴你：發生什麼事、老師怎麼用、資訊組要注意什麼。
         </p>
         <div className="hero-meta">
           <span className="live-pill"><i /> 雷達運作中</span>
@@ -290,7 +290,7 @@ export function NewsDashboard({ initialItems }: { initialItems: DigestItem[] }) 
           <div><span>校園</span><strong>科技新報科技教育 · Google 台灣</strong><p>留意教師、學生、學習與校園應用相關消息。</p></div>
           <div><span>資安</span><strong>TWCERT/CC</strong><p>遇到 AI、帳號、個資、漏洞與攻擊風險時，標成重要消息。</p></div>
           <div><span>社群</span><strong>Bluesky 公開動態</strong><p>免金鑰讀取公開作者貼文，保留作者、時間與原文連結。</p></div>
-          <div><span>訂閱</span><strong>YouTube 每日新片</strong><p>接收 Claude Code 的既有推播，只列新片，不產生摘要。</p></div>
+          <div><span>訂閱</span><strong>YouTube 每兩小時同步</strong><p>接收 Claude Code 的既有推播，只列新片，不產生摘要。</p></div>
         </div>
       </section>
 

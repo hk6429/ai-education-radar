@@ -1,6 +1,6 @@
 # AI 教育雷達
 
-把繁體中文 AI 新聞、Bluesky 公開社群與每日 YouTube 訂閱推播整理成小學生看得懂的內容，並提供國中老師與學校資訊組可採取的做法。
+把繁體中文 AI 新聞、Bluesky 公開社群與每兩小時 YouTube 訂閱推播整理成小學生看得懂的內容，並提供國中老師與學校資訊組可採取的做法。
 
 ## 積木架構
 
@@ -55,9 +55,9 @@ npm run dev
 | `AI_MODEL` | 選用 | AI Gateway 模型，預設 `openai/gpt-5-mini` |
 | `AI_RADAR_INGEST_SECRET` | 必要 | 保護 `/api/ingest/claude`，供本機 Shell 排程送入資料 |
 
-## Claude Code 每日同步
+## Claude Code 每兩小時同步
 
-本機既有的 YouTube 偵測仍每小時執行並即時推播 Telegram。網站另外在每天 00:20 執行 `~/.claude/scripts/sync_ai_radar_daily.sh`，整理最近 26 小時的新片並送到網站；D1 會依影片 ID 去重。
+本機既有的 YouTube 偵測仍每小時執行並即時推播 Telegram。網站另外在每天雙數小時的 20 分執行 `~/.claude/scripts/sync_ai_radar_daily.sh`，整理最近 26 小時的新片並送到網站；D1 會依影片 ID 去重。
 
 Claude Code 的 Telegram `.env` 需設定下列兩項，且 `AI_RADAR_INGEST_SECRET` 必須與網站端相同：
 
